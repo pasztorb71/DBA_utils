@@ -15,7 +15,7 @@ def new_process_parameter_dict(id, task):
 
 
 def dispatcher(process_list, max_parallel_threads=0):
-  """Calls the executor many times"""
+  """Define tasks and calls the executor many times in separated threads"""
   thread_counter = 1
   for l in range(1,14):
     one_process_parameters = new_process_parameter_dict(id=thread_counter, task=l)
@@ -29,6 +29,8 @@ def dispatcher(process_list, max_parallel_threads=0):
     thread_counter += 1
 
 def executor(process_parameters):
+  """It execute a task.
+  In this case it emulates a progress"""
   end_cnt = randint(100,200)
   status = 0
   while status < end_cnt:
@@ -38,12 +40,12 @@ def executor(process_parameters):
   process_parameters['run_flag'] = 'Finished'
 
 def get_work_status(process):
-  """A paraméterként megadott kapcsolat megadott munkamenetében visszaadja a longops aktuális értékét
-  session_id = (inst, sid, serial#)"""
+  """This is to contain an algoritm for measuring the progress in percent (1-100)"""
   return process['status_pct']
 
 
 def init_gui(cim):
+  """Make a new tkinter window"""
   root = Tk()
   root.title(cim)
   return root
@@ -74,10 +76,7 @@ def has_progressbar(process):
 
 
 def progress_monitoring(process_list, title='Task monitor'):
-  """
-    A praméterként kapott lista: [azonosító, flag, adat]
-    Grafikus ablakban mutatja a még futó azonosítókat
-  """
+  """First parameter a list containing the tasks to be monitored"""
 
   f = init_gui(title)
   wait_until_process_list_is_empty(process_list)
