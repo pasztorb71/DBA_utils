@@ -18,31 +18,30 @@ def new_process_parameter_dict(id, task):
 def get_running_processes_cnt(process_list):
   return sum(1 if n['run_flag'] == 'Running' else 0 for n in process_list)
 
-def dispatcher(process_list, max_parallel_threads=0):
+def dispatcher(process_list, max_parallel_threads=1000):
   """Define tasks and calls the executor many times in separated threads"""
-  thread_counter = 1
   for process in process_list:
     while get_running_processes_cnt(process_list) >= max_parallel_threads:
       tim.sleep(0.1)
     t = threading.Thread(target=executor, args=(process,))
     t.start()
-    thread_counter += 1
 
 def fill_process_list(process_list):
   """Define tasks into process_list"""
-  for l in range(1,34):
+  for l in range(1,24):
     one_process_parameters = new_process_parameter_dict(id=l, task=l)
     process_list.append(one_process_parameters)
 
 def executor(process_parameters):
   """It execute a task.
   In this case it emulates a progress"""
+  process_parameters['run_flag'] = 'Running'
   end_cnt = randint(100,200)
   status = 0
   while status < end_cnt:
     status += randint(1,5)
     process_parameters['status_pct'] = int(status/end_cnt*100)
-    tim.sleep(0.5)
+    tim.sleep(0.013)
   process_parameters['run_flag'] = 'Finished'
 
 def get_work_status(process):
@@ -56,6 +55,7 @@ def init_gui(cim):
   root.grid_rowconfigure(0, weight=1)
   root.columnconfigure(0, weight=1)
   root.title(cim)
+  root.resizable(False, True)
   frame_main = Frame(root)
   frame_main.grid(sticky='news')
 
@@ -70,6 +70,8 @@ def init_gui(cim):
   # Add a canvas in that frame
   canvas = Canvas(frame_canvas)
   canvas.grid(row=0, column=0)
+  canvas.pack(fill="both", expand=True)
+
 
   # Link a scrollbar to the canvas
   vsb = Scrollbar(frame_canvas, orient="vertical", command=canvas.yview)
@@ -79,8 +81,14 @@ def init_gui(cim):
   # Create a frame to contain the scrollable content
   frame_progress = Frame(canvas)
   canvas.create_window((0, 0), window=frame_progress, anchor='nw')
+  init_gui.can = canvas
+  init_gui.fm = frame_main
 
   return root, frame_progress, frame_canvas, vsb, canvas
+
+def configure(event):
+  w, h = event.width, event.height
+  init_gui.can.config(height=h)
 
 
 def init_new_progressbar(frame_progress, p_length, p_id, p_process):
@@ -116,41 +124,39 @@ def draw_gui_content(frame_progress, frame_canvas, vsb, canvas, process_list):
   frame_width = p['task_label'].winfo_width() + p['progressbar'].winfo_width() + p['status_label'].winfo_width()
   frame_height = p['task_label'].winfo_height() * 20
   frame_canvas.config(width=frame_width + vsb.winfo_width(), height=frame_height)
-  #frame_canvas.config(width=850, height=450)
   canvas.config(width=frame_width + vsb.winfo_width(), height=frame_height)
-
   canvas.config(scrollregion=canvas.bbox("all"))
+  canvas.update()
 
 def make_gui(process_list, title='Task monitor'):
   root, frame_progress, frame_canvas, vsb, canvas = init_gui(title)
   draw_gui_content(frame_progress, frame_canvas, vsb, canvas, process_list)
+  init_gui.fm.bind("<Configure>", configure)
+
   return root
+
 
 def progress_monitoring(frame, process_list, title='Task monitor'):
   """First parameter a list containing the tasks to be monitored"""
 
   finished_processes = []
   while True:
-    if_ended = False
     for process in [elem for elem in process_list if elem['id'] not in finished_processes]:
+      process['status_label'].config(text=process['run_flag'])
       if process['run_flag'] == 'Finished':
         process['status_label'].config(text=process['run_flag'])
+        process['progressbar']['value'] = 100
         finished_processes.append(process['id'])
       else:
-        status = get_work_status(process)
-        if status:
-          process['progressbar']['value'] = status
-          if_ended = True
+        process['progressbar']['value'] = get_work_status(process)
     tim.sleep(0.1)
-    frame.update()
-    if not if_ended: break
+    if len(finished_processes) == len(process_list): break
 
   print('Finished')
-
 
 process_list = []
 fill_process_list(process_list)
 root = make_gui(process_list)
-dispatcher(process_list, max_parallel_threads=5)
+threading.Thread(target=dispatcher, args=(process_list, 5)).start()
 threading.Thread(target=progress_monitoring, args=(root, process_list, )).start()
 root.mainloop()
