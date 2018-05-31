@@ -11,42 +11,59 @@ def new_process_parameter_dict(id, task):
           'task_label'  : None,         #task label object
           'progressbar' : None,         #progressbar object
           'status_label': None,         #status label object
-          'status_pct'  : 0
+          'status_pct'  : 0,
+          'command'     : ''            #It can be used by executor when sql commands to be executed
          }
 
 
 def get_running_processes_cnt(process_list):
   return sum(1 if n['run_flag'] == 'Running' else 0 for n in process_list)
 
+
 def dispatcher(process_list, max_parallel_threads=1000):
-  """Define tasks and calls the executor many times in separated threads"""
+  """Make separated executor threads as many times as many records in the process list.
+  It also limits the maximum number of treads in the same time """
   for process in process_list:
     while get_running_processes_cnt(process_list) >= max_parallel_threads:
       tim.sleep(0.1)
     t = threading.Thread(target=executor, args=(process,))
     t.start()
 
-def fill_process_list(process_list):
+
+def fill_process_list():
   """Define tasks into process_list"""
+  list = []
   for l in range(1,24):
     one_process_parameters = new_process_parameter_dict(id=l, task=l)
-    process_list.append(one_process_parameters)
+    list.append(one_process_parameters)
+  return list
 
 def executor(process_parameters):
-  """It execute a task.
+  """It execute a task given in process_parameters.
   In this case it emulates a progress"""
   process_parameters['run_flag'] = 'Running'
+
+  """This part can be modified"""
   end_cnt = randint(100,200)
   status = 0
   while status < end_cnt:
     status += randint(1,5)
     process_parameters['status_pct'] = int(status/end_cnt*100)
     tim.sleep(0.013)
+  """End of modifiable part"""
+
   process_parameters['run_flag'] = 'Finished'
 
+
 def get_work_status(process):
-  """This is to contain an algoritm for measuring the progress in percent (1-100)"""
-  return process['status_pct']
+  """This is to contain an algoritm for measuring the progress in percent (1-100).
+  It must return a number between 1 - 100"""
+
+  """Here is the checker code"""
+  out = process['status_pct']
+  """End of checker code"""
+
+  return out
 
 
 def init_gui(cim):
@@ -84,14 +101,30 @@ def init_gui(cim):
   init_gui.can = canvas
   init_gui.fm = frame_main
 
-  return root, frame_progress, frame_canvas, vsb, canvas
+  for process in process_list:
+    init_new_progressbar(frame_progress, p_length=300, p_id=process['id'], p_process=process)
+  frame_progress.update_idletasks()
+  p = process_list[0]
+  frame_width = p['task_label'].winfo_width() + p['progressbar'].winfo_width() + p['status_label'].winfo_width()
+  frame_height = p['task_label'].winfo_height() * 20
+  frame_canvas.config(width=frame_width + vsb.winfo_width(), height=frame_height)
+  canvas.config(width=frame_width + vsb.winfo_width(), height=frame_height)
+  canvas.config(scrollregion=canvas.bbox("all"))
+  canvas.update()
+
+  init_gui.fm.bind("<Configure>", configure)
+
+  return root
 
 def configure(event):
+  """Runs when root window height is modified by user"""
   w, h = event.width, event.height
   init_gui.can.config(height=h)
 
 
 def init_new_progressbar(frame_progress, p_length, p_id, p_process):
+  """Defines a new progressbar object and two labels"""
+
   label = Label(frame_progress, text='Task_' + str(p_id), width=15, borderwidth=2, relief="groove")
   label.grid(row=p_id, column=0)
   p_process['task_label'] = label
@@ -108,37 +141,12 @@ def init_new_progressbar(frame_progress, p_length, p_id, p_process):
   return progress
 
 
-def wait_until_process_list_is_empty(process_list):
-  while not process_list: tim.sleep(0.1)
-
-
 def has_progressbar(process):
   return (process['progressbar'] and process['status_label'])
 
 
-def draw_gui_content(frame_progress, frame_canvas, vsb, canvas, process_list):
-  for process in process_list:
-    init_new_progressbar(frame_progress, p_length=300, p_id=process['id'], p_process=process)
-  frame_progress.update_idletasks()
-  p = process_list[0]
-  frame_width = p['task_label'].winfo_width() + p['progressbar'].winfo_width() + p['status_label'].winfo_width()
-  frame_height = p['task_label'].winfo_height() * 20
-  frame_canvas.config(width=frame_width + vsb.winfo_width(), height=frame_height)
-  canvas.config(width=frame_width + vsb.winfo_width(), height=frame_height)
-  canvas.config(scrollregion=canvas.bbox("all"))
-  canvas.update()
-
-def make_gui(process_list, title='Task monitor'):
-  root, frame_progress, frame_canvas, vsb, canvas = init_gui(title)
-  draw_gui_content(frame_progress, frame_canvas, vsb, canvas, process_list)
-  init_gui.fm.bind("<Configure>", configure)
-
-  return root
-
-
 def progress_monitoring(frame, process_list, title='Task monitor'):
   """First parameter a list containing the tasks to be monitored"""
-
   finished_processes = []
   while True:
     for process in [elem for elem in process_list if elem['id'] not in finished_processes]:
@@ -151,12 +159,12 @@ def progress_monitoring(frame, process_list, title='Task monitor'):
         process['progressbar']['value'] = get_work_status(process)
     tim.sleep(0.1)
     if len(finished_processes) == len(process_list): break
-
   print('Finished')
 
-process_list = []
-fill_process_list(process_list)
-root = make_gui(process_list)
-threading.Thread(target=dispatcher, args=(process_list, 5)).start()
-threading.Thread(target=progress_monitoring, args=(root, process_list, )).start()
-root.mainloop()
+
+if __name__ == '__main__':
+  process_list = fill_process_list()
+  root = init_gui('Task monitor')
+  threading.Thread(target=dispatcher, args=(process_list, 5)).start()
+  threading.Thread(target=progress_monitoring, args=(root, process_list, )).start()
+  root.mainloop()
