@@ -1,1 +1,1 @@
-This task runner class is usable for parallele execution of DBA tasks, for example rebuild lots of indexes.
+This task runner class is usable for parallel execution of DBA tasks, for example rebuild lots of indexes.
