@@ -56,12 +56,15 @@ class parallel_command_executor():
 
 
   def fill_process_list(self, command_list):
-    """Define tasks into process_list"""
+    """Define tasks into process_list
+    command_list is a list of tuples and also contains the task names
+    shown in the first column of the graphical window.
+    command_list must look like this: [(command_1, taskname_1), ..., (command_n, taskname_n)]"""
     list = []
     for index, command in enumerate(command_list):
-      tmp = command.split(" ")
-      task_name = tmp[2] + ' ' + tmp[3]
-      one_process_parameters = self.new_process_parameter_dict(id=index, task=task_name, command=command)
+      tmp = command[0].split(" ")
+      task_name = command[1]
+      one_process_parameters = self.new_process_parameter_dict(id=index, task=task_name, command=command[0])
       list.append(one_process_parameters)
     return list
 
