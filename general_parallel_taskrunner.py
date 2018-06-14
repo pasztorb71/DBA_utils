@@ -162,9 +162,12 @@ def progress_monitoring(frame, process_list, title='Task monitor'):
   print('Finished')
 
 
+title = 'Task monitor'
+max_parallel_threads = 5
+
 if __name__ == '__main__':
   process_list = fill_process_list()
-  root = init_gui('Task monitor')
-  threading.Thread(target=dispatcher, args=(process_list, 5)).start()
+  root = init_gui(title)
+  threading.Thread(target=dispatcher, args=(process_list, max_parallel_threads)).start()
   threading.Thread(target=progress_monitoring, args=(root, process_list, )).start()
   root.mainloop()
